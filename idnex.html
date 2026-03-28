@@ -1,0 +1,1886 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSGO 饰品交易记录</title>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        :root {
+            --bg-primary: #1E1E2E;
+            --bg-secondary: #2D2D3E;
+            --bg-tertiary: #3D3D4E;
+            --text-primary: #E5E5E5;
+            --text-secondary: #9CA3AF;
+            --accent: #5E98D9;
+            --profit: #22C55E;
+            --loss: #EF4444;
+            --border: rgba(255, 255, 255, 0.2);
+            --grid-line: rgba(255, 255, 255, 0.03);
+            --amount-color: #10B981;
+            --icon-box-bg: #374151;
+            --icon-text-color: #E5E5E5;
+            --icon-text-shadow: 0 0 8px rgba(59, 130, 246, 0.7);
+        }
+        .light-mode {
+            --bg-primary: #F8F9FA;
+            --bg-secondary: #FFFFFF;
+            --bg-tertiary: #E5E7EB;
+            --text-primary: #1F2937;
+            --text-secondary: #6B7280;
+            --accent: #3B82F6;
+            --profit: #16A34A;
+            --loss: #DC2626;
+            --border: rgba(0, 0, 0, 0.1);
+            --grid-line: rgba(0, 0, 0, 0.05);
+            --amount-color: #059669;
+            --icon-box-bg: #F3F4F6;
+            --icon-text-color: #1F2937;
+            --icon-text-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.1); }
+            50% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.2); }
+        }
+        .light-mode .glow-border { animation: pulse-glow-light 3s ease-in-out infinite; }
+        @keyframes pulse-glow-light {
+            0%, 100% { box-shadow: 0 0 5px rgba(0, 0, 0, 0.05); }
+            50% { box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); }
+        }
+        .glow-border { animation: pulse-glow 3s ease-in-out infinite; }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); }
+        .light-mode .card-hover:hover { box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); }
+        .grid-bg {
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+        .metal-border {
+            border: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
+        }
+        .light-mode .metal-border {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 240, 240, 1) 100%);
+        }
+        .sidebar-transition { transition: transform 0.3s ease-in-out; }
+        .menu-item { transition: all 0.2s ease; white-space: nowrap; }
+        .menu-item:hover { background: rgba(94, 152, 217, 0.2); }
+        .light-mode .menu-item:hover { background: rgba(59, 130, 246, 0.1); }
+        .menu-item.active { background: rgba(94, 152, 217, 0.3); border-left: 3px solid var(--accent); }
+        .submenu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .submenu.open { max-height: 500px; }
+        input[type="file"] { display: none; }
+        .settle-btn { background: linear-gradient(135deg, var(--accent) 0%, #4A7AB8 100%); }
+        .light-mode .settle-btn { background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); }
+        .settle-btn:hover { opacity: 0.9; }
+        .menu-text { font-size: 0.875rem; }
+        .submenu .menu-item { font-size: 0.8rem; }
+        @media (max-width: 1024px) {
+            aside#sidebar { width: 52%; }
+            .menu-text { font-size: 0.8rem; }
+            .submenu .menu-item { font-size: 0.75rem; }
+            aside h1 .title-text { font-size: 0.9rem; }
+        }
+        .mode-card {
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .mode-card.selected {
+            border-color: var(--accent);
+        }
+        .mode-card:hover {
+            transform: scale(1.02);
+        }
+        .profit-nowrap {
+            white-space: nowrap;
+            display: inline-block;
+        }
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .status-unsettled { background: rgba(239, 68, 68, 0.2); color: var(--loss); }
+        .status-partial { background: rgba(234, 179, 8, 0.2); color: #FBBF24; }
+        .status-settled { background: rgba(34, 197, 94, 0.2); color: var(--profit); }
+        .icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 4px;
+            background-color: var(--icon-box-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .icon-box-text {
+            font-weight: 700;
+            color: var(--icon-text-color);
+            text-shadow: var(--icon-text-shadow);
+        }
+        .icon-box-text-en {
+            font-size: 14px;
+        }
+        .icon-box-text-zh {
+            font-size: 16px;
+        }
+        #profitDetailContent {
+            padding-top: 0;
+        }
+        @media (max-width: 768px) {
+            #profitDetailContent {
+                padding-top: 0 !important;
+            }
+            #profitDetailContent table th:nth-child(3),
+            #profitDetailContent table td:nth-child(3),
+            #profitDetailContent table th:nth-child(4),
+            #profitDetailContent table td:nth-child(4) {
+                white-space: nowrap;
+                font-size: 12px;
+            }
+            #profitDetailContent table thead {
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+        }
+    </style>
+</head>
+<body class="grid-bg min-h-screen" style="background-color: var(--bg-primary); color: var(--text-primary);">
+    <div class="flex min-h-screen">
+        <button id="menuToggle" class="fixed top-4 left-4 z-50 lg:hidden w-12 h-12 rounded-lg flex items-center justify-center metal-border" style="background-color: var(--bg-secondary);">
+            <span class="text-2xl">☰</span>
+        </button>
+        <div id="overlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden"></div>
+        
+        <aside id="sidebar" class="fixed lg:static z-50 w-[52%] lg:w-72 h-full metal-border sidebar-transition transform -translate-x-full lg:translate-x-0 overflow-y-auto" style="background-color: var(--bg-secondary);">
+            <div class="p-6">
+                <h1 class="text-2xl font-bold mb-6 flex items-center justify-center gap-3" style="color: var(--text-primary);">
+                    <img src="data:image/png;base64,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" class="w-10 h-10" alt="CStra Logo">
+                    <span class="title-text" style="color: #5E98D9; font-size: 1.5rem; font-weight: bold;">CStra</span>
+                </h1>
+                
+                <div class="mb-4">
+                    <div class="menu-item active px-4 py-3 rounded-lg cursor-pointer" onclick="setView('home')" data-view="home">
+                        <div class="flex items-center gap-3">
+                            <span>🏠</span>
+                            <span class="font-medium menu-text">首页</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="menu-item flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer" onclick="toggleSubmenu('trades')">
+                        <div class="flex items-center gap-3">
+                            <span>📋</span>
+                            <span class="font-medium menu-text">交易记录</span>
+                        </div>
+                        <span id="trades-icon" style="color: var(--text-secondary);">▶</span>
+                    </div>
+                    <div id="trades-submenu" class="submenu ml-4 mt-1 space-y-1">
+                        <div class="menu-item px-4 py-2 rounded cursor-pointer text-sm" onclick="setFilter('all')" data-filter="all">全部交易</div>
+                        <div class="menu-item px-4 py-2 rounded cursor-pointer text-sm" onclick="setFilter('buy')" data-filter="buy">购入记录</div>
+                        <div class="menu-item px-4 py-2 rounded cursor-pointer text-sm" onclick="setFilter('sell')" data-filter="sell">售出记录</div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="menu-item px-4 py-3 rounded-lg cursor-pointer" onclick="setView('settlement')" data-view="settlement">
+                        <div class="flex items-center gap-3">
+                            <span>💰</span>
+                            <span class="font-medium menu-text">结算</span>
+                        </div>
+                    </div>
+                </div>
+                
+
+                
+                <div class="mb-4">
+                    <div class="menu-item px-4 py-3 rounded-lg cursor-pointer" onclick="setView('notes')" data-view="notes">
+                        <div class="flex items-center gap-3">
+                            <span>📝</span>
+                            <span class="font-medium menu-text">交易笔记</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="menu-item px-4 py-3 rounded-lg cursor-pointer" onclick="setView('guide')" data-view="guide">
+                        <div class="flex items-center gap-3">
+                            <span>📖</span>
+                            <span class="font-medium menu-text">使用说明</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="menu-item flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer" onclick="toggleSubmenu('manage')">
+                        <div class="flex items-center gap-3">
+                            <span>💾</span>
+                            <span class="font-medium menu-text">数据管理</span>
+                        </div>
+                        <span id="manage-icon" style="color: var(--text-secondary);">▶</span>
+                    </div>
+                    <div id="manage-submenu" class="submenu ml-4 mt-1 space-y-1">
+                        <div class="menu-item px-4 py-2 rounded cursor-pointer text-sm" onclick="document.getElementById('importFile').click()">导入交易记录</div>
+                        <input type="file" id="importFile" accept=".json,.csv" onchange="importTrades(event)">
+                        <div class="menu-item px-4 py-2 rounded cursor-pointer text-sm" onclick="exportTrades('json')">导出 JSON</div>
+                        <div class="menu-item px-4 py-2 rounded cursor-pointer text-sm" onclick="exportTrades('csv')">导出 CSV</div>
+                        <div class="menu-item px-4 py-2 rounded cursor-pointer text-sm" style="color: var(--loss);" onclick="clearAllTrades()">清空记录</div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="menu-item flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer" onclick="toggleSubmenu('settings')">
+                        <div class="flex items-center gap-3">
+                            <span>⚙️</span>
+                            <span class="font-medium menu-text">页面设置</span>
+                        </div>
+                        <span id="settings-icon" style="color: var(--text-secondary);">▶</span>
+                    </div>
+                    <div id="settings-submenu" class="submenu ml-4 mt-1 space-y-1">
+                        <div class="menu-item px-4 py-2 rounded cursor-pointer text-sm" onclick="openThemeModal()">背景切换</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="flex-1 lg:ml-0">
+            <div class="container mx-auto px-4 py-6 lg:px-8 lg:py-8">
+                
+                <div id="homeView">
+                    <div class="metal-border glow-border rounded-xl p-8 mb-8 text-center">
+                        <h2 class="text-lg mb-2" style="color: var(--text-secondary);">实际盈亏总额</h2>
+                        <div id="homeActualProfit" onclick="openProfitDetailModal()" class="text-6xl font-bold mb-4 cursor-pointer hover:opacity-80 transition-all profit-nowrap">¥0.00</div>
+                        <div class="text-lg" style="color: var(--text-secondary);">
+                            未结算金额总额: <span id="homeUnsettledAmount" class="text-2xl font-bold">¥0.00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button onclick="openQuickModal('buy')" class="metal-border card-hover rounded-xl p-6 text-center transition-all" style="background-color: rgba(34, 197, 94, 0.1);">
+                            <div class="text-4xl mb-2">🛒</div>
+                            <div class="text-xl font-bold" style="color: var(--profit);">购入</div>
+                        </button>
+                        <button onclick="setView('settlement')" class="metal-border card-hover rounded-xl p-6 text-center transition-all" style="background-color: rgba(239, 68, 68, 0.1);">
+                            <div class="text-4xl mb-2">💸</div>
+                            <div class="text-xl font-bold" style="color: var(--loss);">售出</div>
+                        </button>
+                    </div>
+                </div>
+                
+
+                
+                <div id="settlementView" class="hidden">
+                    <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">结算</h2>
+                    <div id="settlementList" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+                </div>
+                
+                <div id="tradesMainView" class="hidden">
+                    <div class="mb-4">
+                        <div class="flex flex-col md:flex-row gap-4 items-center md:justify-center">
+                            <div class="relative w-full md:w-auto md:flex-1 max-w-lg">
+                                <input type="text" id="tradeSearchInput" placeholder="搜索饰品名称..." oninput="handleTradeSearch()" class="w-full rounded-lg px-4 py-3 pl-12 focus:outline-none metal-border" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                                <span class="absolute left-4 top-1/2 transform -translate-y-1/2" style="color: var(--accent);">🔍</span>
+                                <button id="clearSearchBtn" onclick="clearTradeSearch()" class="absolute right-4 top-1/2 transform -translate-y-1/2 hover:opacity-70 hidden" style="color: var(--text-secondary);">×</button>
+                            </div>
+                            <div id="allTradeFilterContainer" class="w-full md:w-auto hidden">
+                                <select id="allTradeFilterSelect" onchange="handleAllTradeFilterChange()" class="w-full md:w-auto rounded-lg px-4 py-3 focus:outline-none metal-border" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                                    <option value="all">全部</option>
+                                    <option value="unsettled">购入</option>
+                                    <option value="settled">售出</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="tradeList" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+                    <div id="tradePagination" class="mt-6"></div>
+                    <div id="tradeActions" class="mt-6 flex justify-center">
+                        <button id="deleteAllBtn" onclick="deleteAllFilteredTrades()" class="w-1/2 max-w-xs text-white font-bold py-3 px-6 rounded-lg transition-all hidden" style="background: linear-gradient(to right, #DC2626, #B91C1C);">一键删除当前页面所有记录</button>
+                    </div>
+                </div>
+                
+                <div id="notesView" class="hidden">
+                    <div class="metal-border rounded-xl p-6 mb-6">
+                        <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">添加笔记</h2>
+                        <textarea id="noteInput" class="w-full rounded-lg px-4 py-3 focus:outline-none metal-border min-h-32" style="background-color: var(--bg-secondary); color: var(--text-primary);" placeholder="记录您的交易想法、市场分析..."></textarea>
+                        <button onclick="addNote()" class="mt-4 text-white font-bold py-2 px-6 rounded-lg transition-all" style="background: linear-gradient(to right, #3B82F6, #8B5CF6);">保存笔记</button>
+                    </div>
+                    <div id="notesList" class="space-y-4"></div>
+                </div>
+                
+                <div id="guideView" class="hidden">
+                    <div class="metal-border rounded-xl p-4 md:p-8 mb-8">
+                        <h2 class="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center" style="color: var(--text-primary);">使用说明</h2>
+                        
+                        <div id="guidePage1">
+                            <div class="mb-6 md:mb-8 py-2">
+                                <h3 class="text-base md:text-lg font-bold mb-3 md:mb-4" style="color: #2563eb;">1. CStra网站的作用是干什么的?</h3>
+                                <div class="pl-3 md:pl-4 text-sm md:text-base leading-relaxed break-words" style="line-height: 1.7; color: var(--text-primary);">
+                                    CStra 是专为 CS玩家量身打造的纯本地交易记账工具，不用注册、不用登录、断网也能用，所有数据都存在你的设备本地，绝对安全。无论你是分批卖出还是长期持有，都能精准记录每一笔买入卖出、自动计算盈亏。核心的「分批结算」功能更是能完美适配 "一笔买入、多笔卖出" 的饰品交易场景，让你对自己的饰品交易盈亏、持仓情况一目了然。更重要的是：它能帮你统计所有交易累计的总收益，并且支持数据导出，汇总不同交易软件(如Buff,悠悠有品等)的累计收益。都能通过 CStra 轻松完成交易记账与收益管理。
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6 md:mb-8 py-2">
+                                <h3 class="text-base md:text-lg font-bold mb-3 md:mb-4" style="color: #2563eb;">2. CStra的使用教程</h3>
+                                <div class="pl-3 md:pl-4 text-sm md:text-base leading-relaxed break-words" style="line-height: 1.7; color: var(--text-primary);">
+                                    <p class="mb-2">① 添加交易记录:首页点击 <span class="inline-block px-2 py-0.5 rounded text-xs font-medium text-white" style="background-color: #3B82F6;">购入</span> 按钮，填写饰品信息后确认</p>
+                                    <p class="mb-2">② 出售交易:点击首页<span class="inline-block px-2 py-0.5 rounded text-xs font-medium text-white" style="background-color: #3B82F6;">售出</span>/目录栏的<span class="inline-block px-2 py-1 rounded text-xs font-medium" style="background-color: rgba(34, 197, 94, 0.2); color: #16A34A;">结算</span>，选择一条未结算的购入记录输入售出单价、售出数量、售出时间，确认后自动生成卖出记录并计算收益</p>
+                                    <p class="mb-2">③ 查看收益:首页顶部显示 实际盈亏总额，点击可查看每笔结算的明细收益表</p>
+                                    <p class="mb-2">④ 管理交易记录:在交易记录中可筛选"购入 / 售出 / 全部"，支持搜索饰品名称。每条记录支持 <span class="inline-block px-2 py-0.5 rounded text-xs font-medium text-white" style="background-color: #10B981;">编辑</span> 和 <span class="inline-block px-2 py-0.5 rounded text-xs font-medium text-white" style="background-color: #EF4444;">删除</span></p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6 md:mb-8 py-2">
+                                <h3 class="text-base md:text-lg font-bold mb-3 md:mb-4" style="color: #2563eb;">3. 目录栏介绍</h3>
+                                <div class="pl-3 md:pl-4 text-sm md:text-base leading-relaxed break-words" style="line-height: 1.7; color: var(--text-primary);">
+                                    <p class="mb-2"><span class="inline-block px-2 py-1 rounded text-xs font-medium" style="background-color: rgba(34, 197, 94, 0.2); color: #16A34A;">首页</span>：查看盈亏总额、未结算金额，快速添加购入</p>
+                                    <p class="mb-2"><span class="inline-block px-2 py-1 rounded text-xs font-medium" style="background-color: rgba(34, 197, 94, 0.2); color: #16A34A;">交易记录</span>：查看所有交易，可按类型筛选，支持搜索</p>
+                                    <p class="mb-2"><span class="inline-block px-2 py-1 rounded text-xs font-medium" style="background-color: rgba(34, 197, 94, 0.2); color: #16A34A;">结算</span>：对未结算的购入进行分批卖出</p>
+                                    <p class="mb-2"><span class="inline-block px-2 py-1 rounded text-xs font-medium" style="background-color: rgba(34, 197, 94, 0.2); color: #16A34A;">数据管理</span>：导入 / 导出 / 清空数据</p>
+                                    <p class="mb-2"><span class="inline-block px-2 py-1 rounded text-xs font-medium" style="background-color: rgba(34, 197, 94, 0.2); color: #16A34A;">交易笔记</span>：记录文本笔记</p>
+                                    <p class="mb-2"><span class="inline-block px-2 py-1 rounded text-xs font-medium" style="background-color: rgba(34, 197, 94, 0.2); color: #16A34A;">页面设置</span>：切换深色 / 浅色模式</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6 md:mb-8 py-2">
+                                <h3 class="text-base md:text-lg font-bold mb-3 md:mb-4" style="color: #2563eb;">4. 怎么查看我的收益和持仓明细</h3>
+                                <div class="pl-3 md:pl-4 text-sm md:text-base leading-relaxed break-words" style="line-height: 1.7; color: var(--text-primary);">
+                                    <p class="mb-2"><strong>盈亏总额</strong>在 <span class="inline-block px-2 py-1 rounded text-xs font-medium" style="background-color: rgba(34, 197, 94, 0.2); color: #16A34A;">首页</span> 顶部直接显示"实际盈亏总额"，点击后可查看详细的 结算收益表（按时间排序，显示每笔卖出的收益）</p>
+                                    <p class="mb-2"><strong>未结算金额总额</strong>：首页同样显示，代表当前未卖出饰品对应的总成本</p>
+                                    <p class="mb-2"><strong>持仓明细</strong>：在 【购入记录】页面 可以看到所有未完全卖出的购入记录，包含剩余数量、购入单价等</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6 md:mb-8 py-2">
+                                <h3 class="text-base md:text-lg font-bold mb-3 md:mb-4" style="color: #2563eb;">5. 我录错了交易记录、卖错了批次，能修改或者删除吗？</h3>
+                                <div class="pl-3 md:pl-4 text-sm md:text-base leading-relaxed break-words" style="line-height: 1.7; color: var(--text-primary);">
+                                    <p class="mb-2"><strong>修改交易记录</strong>：在【交易记录】找到对应的买入/卖出记录，点击 <span class="inline-block px-2 py-0.5 rounded text-xs font-medium text-white" style="background-color: #10B981;">编辑</span> 即可修改名称、价格、数量、品质等信息。</p>
+                                    <p class="mb-2"><strong>删除交易记录</strong>：点击记录上的 <span class="inline-block px-2 py-0.5 rounded text-xs font-medium text-white" style="background-color: #EF4444;">删除</span> 按钮即可单条删除。重新编辑输入。</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="guidePage2" class="hidden">
+                            <div class="mb-6 md:mb-8 py-2">
+                                <h3 class="text-base md:text-lg font-bold mb-3 md:mb-4" style="color: #2563eb;">6. 我录入的交易数据会泄露吗？</h3>
+                                <div class="pl-3 md:pl-4 text-sm md:text-base leading-relaxed break-words" style="line-height: 1.7; color: var(--text-primary);">
+                                    <p class="mb-2"><strong>不会。</strong></p>
+                                    <p class="mb-2">CStra 的所有数据 <strong>仅保存在你的浏览器本地存储（localStorage）中</strong>，不经过任何服务器，也不会上传到任何网络。</p>
+                                    <p class="mb-2">因此：别人无法远程获取你的数据。但清除浏览器缓存或卸载浏览器会导致数据丢失，建议定期导出备份</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6 md:mb-8 py-2">
+                                <h3 class="text-base md:text-lg font-bold mb-3 md:mb-4" style="color: #2563eb;">7. 怎么在多台设备（手机 / 电脑）上使用同一套交易数据？</h3>
+                                <div class="pl-3 md:pl-4 text-sm md:text-base leading-relaxed break-words" style="line-height: 1.7; color: var(--text-primary);">
+                                    <p class="mb-2">通过<span class="inline-block px-2 py-1 rounded text-xs font-medium" style="background-color: rgba(34, 197, 94, 0.2); color: #16A34A;">数据管理</span>中的「导出JSON」和「导入交易记录」 功能实现手动同步：</p>
+                                    <p class="mb-2">在 设备 A 上，进入「数据管理」→ 导出 JSON。将导出的文件传输到 设备 B（如通过微信、网盘、邮件等）。在 设备 B 上，进入「数据管理」→ 导入交易记录，选择该文件。</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6 md:mb-8 py-2">
+                                <h3 class="text-base md:text-lg font-bold mb-3 md:mb-4" style="color: #2563eb;">8. 我想清空所有数据重新记账，该怎么操作？有什么注意事项？</h3>
+                                <div class="pl-3 md:pl-4 text-sm md:text-base leading-relaxed break-words" style="line-height: 1.7; color: var(--text-primary);">
+                                    <p class="mb-2">在左侧菜单 <span class="inline-block px-2 py-1 rounded text-xs font-medium" style="background-color: rgba(34, 197, 94, 0.2); color: #16A34A;">数据管理</span> 中点击 <span class="inline-block px-2 py-0.5 rounded text-xs font-medium text-white" style="background-color: #EF4444;">清空记录</span></p>
+                                    <p class="mb-2">系统会弹出确认提示，确认后所有交易记录将被永久删除</p>
+                                    <p class="mb-2"><strong>注意事项：</strong></p>
+                                    <p class="mb-2">清空后 <strong>无法恢复</strong>，建议提前导出 JSON 备份</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6 md:mb-8 py-2">
+                                <h3 class="text-base md:text-lg font-bold mb-3 md:mb-4" style="color: #2563eb;">9. 问题、建议和反馈联系邮箱</h3>
+                                <div class="pl-3 md:pl-4 text-sm md:text-base leading-relaxed break-words" style="line-height: 1.7; color: var(--text-primary);">
+                                    <p class="mb-3"><strong>联系:</strong> 如果你在使用 CStra 的过程中遇到了 bug、功能异常，或是有功能优化建议、使用问题想要咨询，都可以通过邮箱联系我们，我们会尽快处理并回复。</p>
+                                    <div class="flex items-center gap-2 my-3">
+                                        <span class="text-sm" style="color: var(--text-secondary);">联系邮箱：</span>
+                                        <a href="mailto:Lee260327@163.com" class="inline-flex items-center px-3 py-1.5 rounded-lg font-medium transition-all hover:opacity-80" style="background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white;">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                            Lee260327@163.com
+                                        </a>
+                                    </div>
+                                    <p class="mb-2"><strong>反馈建议：</strong> 为了更快帮你解决问题，建议你在邮件中详细描述遇到的问题 / 建议内容，可附上相关的页面截图，我们会认真对待每一条反馈。</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-center gap-3 md:gap-4 mt-6 md:mt-8">
+                            <button onclick="showGuidePage(1)" id="guideBtn1" class="px-4 md:px-6 py-2 md:py-3 rounded-lg font-bold transition-all text-sm md:text-base" style="background-color: #3B82F6; color: white;">第1页</button>
+                            <button onclick="showGuidePage(2)" id="guideBtn2" class="px-4 md:px-6 py-2 md:py-3 rounded-lg font-bold transition-all text-sm md:text-base" style="background-color: var(--bg-tertiary); color: var(--text-primary);">第2页</button>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </main>
+    </div>
+    
+    <div id="quickModal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center">
+        <div class="rounded-xl p-6 w-full max-w-2xl mx-4 metal-border" style="background-color: var(--bg-secondary);">
+            <h2 id="quickModalTitle" class="text-xl font-bold mb-4" style="color: var(--text-primary);">快速交易</h2>
+            <form id="quickForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" id="quickType">
+                <div class="md:col-span-2">
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">饰品名称</label>
+                    <input type="text" id="quickItemName" placeholder="例如：AK-47 | 红线" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);" required>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">饰品类型</label>
+                    <select id="quickItemIconType" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+                        <option value="ak47">AK-47</option>
+                        <option value="m4a1">M4A1</option>
+                        <option value="m4a4">M4A4</option>
+                        <option value="awp">AWP</option>
+                        <option value="usp">USP</option>
+                        <option value="glock">Glock</option>
+                        <option value="knife">匕首</option>
+                        <option value="gloves">手套</option>
+                        <option value="sticker">贴纸</option>
+                        <option value="general">其他</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">单价 (¥)</label>
+                    <input type="number" id="quickItemPrice" placeholder="0.00" step="0.01" min="0" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);" required oninput="calculateQuickTotal()">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">数量</label>
+                    <input type="number" id="quickItemQuantity" value="1" min="1" step="1" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);" required oninput="calculateQuickTotal()">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">品质</label>
+                    <select id="quickItemRarity" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+                        <option value="consumer" style="color: #B0C3D9;">消费级</option>
+                        <option value="industrial" style="color: #4B69FF;">工业级</option>
+                        <option value="mil-spec" style="color: #5E98D9;">军规级</option>
+                        <option value="restricted" style="color: #8847FF;">受限</option>
+                        <option value="classified" style="color: #B12CEE;">保密</option>
+                        <option value="covert" style="color: #D22E2E;">隐秘</option>
+                        <option value="contraband" style="color: #FF4444;">违禁</option>
+                        <option value="common" style="color: #FFFFFF;">普通级</option>
+                        <option value="uncommon" style="color: #4A708B;">高级</option>
+                        <option value="rare" style="color: #97FFFF;">卓越</option>
+                        <option value="mythical" style="color: #FF7D00;">非凡</option>
+                        <option value="legendary" style="color: #8B4513;">大师</option>
+                        <option value="ancient" style="color: #FFB800;">奇异</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">磨损</label>
+                    <select id="quickItemWear" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+                        <option value="">不选择</option>
+                        <option value="factory-new" style="color: #2ECC71;">崭新出厂</option>
+                        <option value="minimal-wear" style="color: #82E0AA;">略有磨损</option>
+                        <option value="field-tested" style="color: #F1C40F;">久经沙场</option>
+                        <option value="well-worn" style="color: #E67E22;">破损不堪</option>
+                        <option value="battle-scarred" style="color: #E74C3C;">战痕累累</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">交易日期</label>
+                    <input type="date" id="quickTradeDate" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+                </div>
+                <div class="md:col-span-2 flex items-center gap-4 pt-2">
+                    <div class="text-sm" style="color: var(--text-secondary);">
+                        总价: <span id="quickCalculatedTotal" class="text-xl font-bold" style="color: var(--text-primary);">¥0.00</span>
+                    </div>
+                    <button type="button" id="cancelQuick" class="flex-1 py-2 px-4 rounded-lg transition-all" style="background-color: var(--bg-tertiary); color: var(--text-primary);">取消</button>
+                    <button type="submit" class="flex-1 text-white font-bold py-2 px-4 rounded-lg transition-all" style="background: linear-gradient(to right, #3B82F6, #8B5CF6);">确认</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="settleModal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+        <div class="rounded-xl w-full max-w-2xl mx-4 metal-border" style="background-color: var(--bg-secondary);">
+            <div class="flex items-center justify-between p-6" style="border-bottom: 1px solid var(--border);">
+                <h2 class="text-xl font-bold" style="color: var(--text-primary);">分批结算确认</h2>
+                <button onclick="closeSettleModal()" class="settle-btn text-white w-10 h-10 rounded-lg flex items-center justify-center text-xl font-bold hover:opacity-80 transition-all">×</button>
+            </div>
+            <div class="p-6">
+                <div id="settleBuyInfo" class="metal-border rounded-lg p-4 mb-4"></div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm mb-1" style="color: var(--text-secondary);">售出单价 (¥)</label>
+                        <input type="number" id="settleSellPrice" placeholder="0.00" step="0.01" min="0" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);" required oninput="calculateSettleTotal()">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1" style="color: var(--text-secondary);">售出数量</label>
+                        <input type="number" id="settleSellQuantity" value="1" min="1" step="1" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);" required oninput="calculateSettleTotal()">
+                        <div id="settleQuantityError" class="text-sm mt-1 hidden" style="color: var(--loss);"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1" style="color: var(--text-secondary);">售出时间</label>
+                        <input type="date" id="settleSellTime" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+                    </div>
+                    <div class="p-4 rounded-lg" style="background-color: var(--bg-tertiary);">
+                        <div class="text-sm mb-2" style="color: var(--text-secondary);">
+                            本次售出总价: <span id="settleSellTotal" class="text-xl font-bold" style="color: var(--text-primary);">¥0.00</span>
+                        </div>
+                        <div class="text-sm" style="color: var(--text-secondary);">
+                            本次单项目收益: <span id="settleProfit" class="text-xl font-bold">¥0.00</span>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="settleBuyId">
+                <div class="flex gap-3 mt-6">
+                    <button onclick="closeSettleModal()" class="flex-1 py-2 px-4 rounded-lg transition-all" style="background-color: var(--bg-tertiary); color: var(--text-primary);">取消</button>
+                    <button onclick="confirmSettle()" class="flex-1 settle-btn text-white font-bold py-2 px-4 rounded-lg transition-all">确认结算</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="editModal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center">
+        <div class="rounded-xl p-6 w-full max-w-2xl mx-4 metal-border" style="background-color: var(--bg-secondary);">
+            <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">编辑交易</h2>
+            <form id="editForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" id="editId">
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">交易类型</label>
+                    <select id="editTradeType" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);" disabled>
+                        <option value="buy">买入</option>
+                        <option value="sell">卖出</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">饰品名称</label>
+                    <input type="text" id="editItemName" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);" required>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">单价 (¥)</label>
+                    <input type="number" id="editItemPrice" step="0.01" min="0" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);" required oninput="calculateEditTotal()">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">数量</label>
+                    <input type="number" id="editItemQuantity" value="1" min="1" step="1" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);" required oninput="calculateEditTotal()">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">品质</label>
+                    <select id="editItemRarity" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+                        <option value="consumer" style="color: #B0C3D9;">消费级</option>
+                        <option value="industrial" style="color: #4B69FF;">工业级</option>
+                        <option value="mil-spec" style="color: #5E98D9;">军规级</option>
+                        <option value="restricted" style="color: #8847FF;">受限</option>
+                        <option value="classified" style="color: #B12CEE;">保密</option>
+                        <option value="covert" style="color: #D22E2E;">隐秘</option>
+                        <option value="contraband" style="color: #FF4444;">违禁</option>
+                        <option value="common" style="color: #FFFFFF;">普通级</option>
+                        <option value="uncommon" style="color: #4A708B;">高级</option>
+                        <option value="rare" style="color: #97FFFF;">卓越</option>
+                        <option value="mythical" style="color: #FF7D00;">非凡</option>
+                        <option value="legendary" style="color: #8B4513;">大师</option>
+                        <option value="ancient" style="color: #FFB800;">奇异</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">磨损</label>
+                    <select id="editItemWear" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+                        <option value="">不选择</option>
+                        <option value="factory-new" style="color: #2ECC71;">崭新出厂</option>
+                        <option value="minimal-wear" style="color: #82E0AA;">略有磨损</option>
+                        <option value="field-tested" style="color: #F1C40F;">久经沙场</option>
+                        <option value="well-worn" style="color: #E67E22;">破损不堪</option>
+                        <option value="battle-scarred" style="color: #E74C3C;">战痕累累</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">饰品类型</label>
+                    <select id="editItemIconType" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+                        <option value="ak47">AK-47</option>
+                        <option value="m4a1">M4A1</option>
+                        <option value="m4a4">M4A4</option>
+                        <option value="awp">AWP</option>
+                        <option value="usp">USP</option>
+                        <option value="glock">Glock</option>
+                        <option value="knife">匕首</option>
+                        <option value="gloves">手套</option>
+                        <option value="sticker">贴纸</option>
+                        <option value="general">其他</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1" style="color: var(--text-secondary);">交易日期</label>
+                    <input type="date" id="editTradeDate" class="w-full rounded-lg px-4 py-2 focus:outline-none metal-border" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+                </div>
+                <div class="md:col-span-2 flex items-center gap-4 pt-2">
+                    <div class="text-sm" style="color: var(--text-secondary);">总价: <span id="editCalculatedTotal" class="text-xl font-bold" style="color: var(--text-primary);">¥0.00</span></div>
+                    <button type="button" id="cancelEdit" class="flex-1 py-2 px-4 rounded-lg transition-all" style="background-color: var(--bg-tertiary); color: var(--text-primary);">取消</button>
+                    <button type="submit" class="flex-1 text-white font-bold py-2 px-4 rounded-lg transition-all" style="background: linear-gradient(to right, #3B82F6, #8B5CF6);">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="profitDetailModal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+        <div class="rounded-xl w-full max-w-3xl mx-4 max-h-[85vh] overflow-hidden flex flex-col metal-border" style="background-color: var(--bg-secondary);">
+            <div class="flex items-center justify-between p-6" style="border-bottom: 1px solid var(--border);">
+                <h2 class="text-xl font-bold" style="color: var(--text-primary);">结算收益表</h2>
+                <button onclick="closeProfitDetailModal()" class="settle-btn text-white w-10 h-10 rounded-lg flex items-center justify-center text-xl font-bold hover:opacity-80 transition-all">×</button>
+            </div>
+            <div id="profitDetailContent" class="flex-1 overflow-y-auto p-6"></div>
+        </div>
+    </div>
+    
+    <div id="themeModal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+        <div class="rounded-xl w-full max-w-lg mx-4 overflow-hidden metal-border" style="background-color: var(--bg-secondary);">
+            <div class="flex items-center justify-between p-6" style="border-bottom: 1px solid var(--border);">
+                <h2 class="text-xl font-bold" style="color: var(--text-primary);">模式选择</h2>
+                <button onclick="closeThemeModal()" class="settle-btn text-white w-10 h-10 rounded-lg flex items-center justify-center text-xl font-bold hover:opacity-80 transition-all">×</button>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div id="darkModeCard" class="mode-card selected metal-border rounded-xl p-4 cursor-pointer relative" onclick="setTheme('dark')">
+                        <div class="h-24 rounded-lg mb-3 flex items-center justify-center" style="background: linear-gradient(135deg, #1E1E2E 0%, #2D2D3E 100%);">
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span id="darkModeCheck" class="text-3xl font-bold" style="color: var(--accent);">✓</span>
+                            </div>
+                        </div>
+                        <div class="text-center font-bold" style="color: var(--text-primary);">深色模式</div>
+                    </div>
+                    <div id="lightModeCard" class="mode-card metal-border rounded-xl p-4 cursor-pointer relative" onclick="setTheme('light')">
+                        <div class="h-24 rounded-lg mb-3 flex items-center justify-center" style="background: linear-gradient(135deg, #F8F9FA 0%, #E5E7EB 100%);">
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span id="lightModeCheck" class="text-3xl font-bold hidden" style="color: var(--accent);">✓</span>
+                            </div>
+                        </div>
+                        <div class="text-center font-bold" style="color: var(--text-primary);">浅色模式</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'csgo-trade-history';
+        const NOTES_KEY = 'csgo-trade-notes';
+        const THEME_KEY = 'csgo-trade-theme';
+        let trades = [];
+        let notes = [];
+        let currentFilter = 'all';
+        let currentView = 'home';
+
+        let currentSettleTrade = null;
+        let tradeSearchKeyword = '';
+        let currentTheme = 'dark';
+        let profitDetailCurrentPage = 1;
+        const profitDetailPageSize = 8;
+        let tradeCurrentPage = 1;
+        const tradePageSizeDesktop = 9;
+        const tradePageSizeMobile = 6;
+        let allTradeFilter = 'all';
+        
+        const rarityConfig = {
+            'consumer': { name: '消费级', color: '#B0C3D9' },
+            'industrial': { name: '工业级', color: '#4B69FF' },
+            'mil-spec': { name: '军规级', color: '#5E98D9' },
+            'restricted': { name: '受限', color: '#8847FF' },
+            'classified': { name: '保密', color: '#B12CEE' },
+            'covert': { name: '隐秘', color: '#D22E2E' },
+            'contraband': { name: '违禁', color: '#FF4444' },
+            'common': { name: '普通级', color: '#FFFFFF' },
+            'uncommon': { name: '高级', color: '#4A708B' },
+            'rare': { name: '卓越', color: '#97FFFF' },
+            'mythical': { name: '非凡', color: '#FF7D00' },
+            'legendary': { name: '大师', color: '#8B4513' },
+            'ancient': { name: '奇异', color: '#FFB800' }
+        };
+        
+        const wearConfig = {
+            'factory-new': { name: '崭新出厂', short: 'FN', range: '0.00-0.07', color: '#2ECC71' },
+            'minimal-wear': { name: '略有磨损', short: 'MW', range: '0.07-0.15', color: '#82E0AA' },
+            'field-tested': { name: '久经沙场', short: 'FT', range: '0.15-0.38', color: '#F1C40F' },
+            'well-worn': { name: '破损不堪', short: 'WW', range: '0.38-0.45', color: '#E67E22' },
+            'battle-scarred': { name: '战痕累累', short: 'BS', range: '0.45-1.00', color: '#E74C3C' }
+        };
+        
+        const iconTypeConfig = {
+            'ak47': { text: 'AK', lang: 'en' },
+            'm4a1': { text: 'M4A1', lang: 'en' },
+            'm4a4': { text: 'M4A4', lang: 'en' },
+            'awp': { text: 'AWP', lang: 'en' },
+            'usp': { text: 'USP', lang: 'en' },
+            'glock': { text: 'Glock', lang: 'en' },
+            'knife': { text: '匕首', lang: 'zh' },
+            'gloves': { text: '手套', lang: 'zh' },
+            'sticker': { text: '贴纸', lang: 'zh' },
+            'general': { text: '其他', lang: 'zh' }
+        };
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTheme();
+            loadTrades();
+            loadNotes();
+            setDefaultDate();
+            initEventListeners();
+            
+            if (trades.length === 0) {
+                trades.push({
+                    id: Date.now(),
+                    type: 'buy',
+                    name: '✅ 测试更新 - AK-47 | 二西莫夫',
+                    price: 1500,
+                    quantity: 1,
+                    totalPrice: 1500,
+                    rarity: 'covert',
+                    wear: 'field-tested',
+                    iconType: 'ak47',
+                    date: new Date().toISOString().split('T')[0],
+                    status: 'unsettled',
+                    remainingQuantity: 1
+                });
+                saveTrades();
+            }
+            
+            setView('home');
+        });
+        
+        function loadTheme() {
+            const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+            currentTheme = savedTheme;
+            applyTheme(currentTheme);
+        }
+        
+        function applyTheme(theme) {
+            if (theme === 'light') {
+                document.body.classList.add('light-mode');
+            } else {
+                document.body.classList.remove('light-mode');
+            }
+            updateThemeCards();
+        }
+        
+        function updateThemeCards() {
+            const darkCard = document.getElementById('darkModeCard');
+            const lightCard = document.getElementById('lightModeCard');
+            const darkCheck = document.getElementById('darkModeCheck');
+            const lightCheck = document.getElementById('lightModeCheck');
+            
+            if (currentTheme === 'dark') {
+                darkCard.classList.add('selected');
+                lightCard.classList.remove('selected');
+                darkCheck.classList.remove('hidden');
+                lightCheck.classList.add('hidden');
+            } else {
+                darkCard.classList.remove('selected');
+                lightCard.classList.add('selected');
+                darkCheck.classList.add('hidden');
+                lightCheck.classList.remove('hidden');
+            }
+        }
+        
+        function openThemeModal() {
+            document.getElementById('themeModal').classList.remove('hidden');
+            document.getElementById('themeModal').classList.add('flex');
+        }
+        
+        function closeThemeModal() {
+            document.getElementById('themeModal').classList.add('hidden');
+            document.getElementById('themeModal').classList.remove('flex');
+        }
+        
+        function setTheme(theme) {
+            currentTheme = theme;
+            localStorage.setItem(THEME_KEY, theme);
+            applyTheme(theme);
+        }
+        
+        function setDefaultDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('quickTradeDate').value = today;
+            document.getElementById('settleSellTime').value = today;
+        }
+        
+        function showGuidePage(page) {
+            if (page === 1) {
+                document.getElementById('guidePage1').classList.remove('hidden');
+                document.getElementById('guidePage2').classList.add('hidden');
+                document.getElementById('guideBtn1').style.backgroundColor = '#3B82F6';
+                document.getElementById('guideBtn1').style.color = 'white';
+                document.getElementById('guideBtn2').style.backgroundColor = 'var(--bg-tertiary)';
+                document.getElementById('guideBtn2').style.color = 'var(--text-primary)';
+            } else {
+                document.getElementById('guidePage1').classList.add('hidden');
+                document.getElementById('guidePage2').classList.remove('hidden');
+                document.getElementById('guideBtn1').style.backgroundColor = 'var(--bg-tertiary)';
+                document.getElementById('guideBtn1').style.color = 'var(--text-primary)';
+                document.getElementById('guideBtn2').style.backgroundColor = '#3B82F6';
+                document.getElementById('guideBtn2').style.color = 'white';
+            }
+        }
+        
+        function loadTrades() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                trades = JSON.parse(data);
+                migrateOldData();
+            }
+        }
+        
+        function migrateOldData() {
+            let needsSave = false;
+            trades.forEach(trade => {
+                if (trade.type === 'buy') {
+                    if (trade.remainingQuantity === undefined) {
+                        trade.remainingQuantity = trade.quantity || 1;
+                        needsSave = true;
+                    }
+                    if (trade.status === undefined) {
+                        if (trade.settled) {
+                            trade.status = 'settled';
+                            trade.remainingQuantity = 0;
+                        } else {
+                            trade.status = 'unsettled';
+                        }
+                        needsSave = true;
+                    }
+                    if (trade.lastUpdateTime === undefined) {
+                        trade.lastUpdateTime = trade.date;
+                        needsSave = true;
+                    }
+                }
+                if (trade.type === 'sell') {
+                    if (trade.sellQuantity === undefined) {
+                        trade.sellQuantity = trade.quantity || 1;
+                        needsSave = true;
+                    }
+                    if (trade.sellTime === undefined) {
+                        trade.sellTime = trade.date;
+                        needsSave = true;
+                    }
+                }
+            });
+            if (needsSave) {
+                saveTrades();
+            }
+        }
+        
+        function saveTrades() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
+        }
+        
+        function loadNotes() {
+            const data = localStorage.getItem(NOTES_KEY);
+            if (data) notes = JSON.parse(data);
+        }
+        
+        function saveNotes() {
+            localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+        }
+        
+        function initEventListeners() {
+            document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+            document.getElementById('overlay').addEventListener('click', closeSidebar);
+            document.getElementById('cancelQuick').addEventListener('click', closeQuickModal);
+            document.getElementById('quickForm').addEventListener('submit', handleQuickTrade);
+            document.getElementById('cancelEdit').addEventListener('click', closeEditModal);
+            document.getElementById('editForm').addEventListener('submit', handleEditTrade);
+        }
+        
+        function setView(view) {
+            currentView = view;
+            
+            document.querySelectorAll('[data-view]').forEach(el => el.classList.remove('active'));
+            const activeMenu = document.querySelector(`[data-view="${view}"]`);
+            if (activeMenu) activeMenu.classList.add('active');
+            
+            document.getElementById('homeView').classList.add('hidden');
+            document.getElementById('settlementView').classList.add('hidden');
+            document.getElementById('tradesMainView').classList.add('hidden');
+            document.getElementById('notesView').classList.add('hidden');
+            document.getElementById('guideView').classList.add('hidden');
+            
+            if (view === 'home') {
+                document.getElementById('homeView').classList.remove('hidden');
+                updateHomeStats();
+            } else if (view === 'settlement') {
+                document.getElementById('settlementView').classList.remove('hidden');
+                renderSettlementList();
+            } else if (view === 'notes') {
+                document.getElementById('notesView').classList.remove('hidden');
+                renderNotes();
+            } else if (view === 'guide') {
+                document.getElementById('guideView').classList.remove('hidden');
+            }
+            
+            closeSidebar();
+        }
+        
+        function setFilter(filter) {
+            currentFilter = filter;
+            currentView = 'trades';
+            clearTradeSearch();
+            tradeCurrentPage = 1;
+            allTradeFilter = 'all';
+            
+            document.querySelectorAll('[data-filter]').forEach(el => {
+                el.classList.remove('active');
+                if (el.dataset.filter === filter) el.classList.add('active');
+            });
+            
+            document.getElementById('homeView').classList.add('hidden');
+            document.getElementById('settlementView').classList.add('hidden');
+            document.getElementById('tradesMainView').classList.remove('hidden');
+            document.getElementById('notesView').classList.add('hidden');
+            
+            const filterContainer = document.getElementById('allTradeFilterContainer');
+            if (currentFilter === 'all') {
+                filterContainer.classList.remove('hidden');
+            } else {
+                filterContainer.classList.add('hidden');
+            }
+            
+            closeSidebar();
+            renderTrades();
+        }
+        
+        function handleAllTradeFilterChange() {
+            allTradeFilter = document.getElementById('allTradeFilterSelect').value;
+            tradeCurrentPage = 1;
+            renderTrades();
+        }
+        
+        function changeTradePage(delta) {
+            tradeCurrentPage += delta;
+            renderTrades();
+        }
+        
+        function getFilteredTrades() {
+            let filtered = [];
+            
+            if (currentFilter === 'all') {
+                if (allTradeFilter === 'unsettled') {
+                    filtered = trades.filter(trade => trade.type === 'buy' && trade.status !== 'settled');
+                } else if (allTradeFilter === 'settled') {
+                    filtered = trades.filter(trade => trade.type === 'sell');
+                } else {
+                    filtered = trades.filter(trade => {
+                        if (trade.type === 'buy') {
+                            return trade.status !== 'settled';
+                        }
+                        return true;
+                    });
+                }
+            } else if (currentFilter === 'buy') {
+                filtered = trades.filter(trade => trade.type === 'buy' && trade.status !== 'settled');
+            } else if (currentFilter === 'sell') {
+                filtered = trades.filter(trade => trade.type === 'sell');
+            }
+            
+            if (tradeSearchKeyword) {
+                filtered = filtered.filter(trade => 
+                    trade.name.toLowerCase().includes(tradeSearchKeyword.toLowerCase())
+                );
+            }
+            
+            return filtered;
+        }
+        
+        function handleTradeSearch() {
+            const input = document.getElementById('tradeSearchInput');
+            const clearBtn = document.getElementById('clearSearchBtn');
+            tradeSearchKeyword = input.value.trim();
+            tradeCurrentPage = 1;
+            
+            if (tradeSearchKeyword) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+            
+            renderTrades();
+        }
+        
+        function clearTradeSearch() {
+            document.getElementById('tradeSearchInput').value = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            tradeSearchKeyword = '';
+            tradeCurrentPage = 1;
+            renderTrades();
+        }
+        
+        function renderTrades() {
+            const container = document.getElementById('tradeList');
+            const deleteBtn = document.getElementById('deleteAllBtn');
+            const paginationContainer = document.getElementById('tradePagination');
+            let filteredTrades = getFilteredTrades();
+            
+            if (filteredTrades.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12" style="color: var(--text-secondary);">
+                        <div class="text-6xl mb-4">🎮</div>
+                        <div class="text-xl">还没有交易记录</div>
+                    </div>
+                `;
+                paginationContainer.innerHTML = '';
+                deleteBtn.classList.add('hidden');
+                return;
+            }
+            
+            filteredTrades.sort((a, b) => {
+                const aTime = a.lastUpdateTime || a.sellTime || a.date;
+                const bTime = b.lastUpdateTime || b.sellTime || b.date;
+                return new Date(bTime) - new Date(aTime);
+            });
+            
+            const isMobile = window.innerWidth <= 768;
+            const pageSize = isMobile ? tradePageSizeMobile : tradePageSizeDesktop;
+            const totalPages = Math.ceil(filteredTrades.length / pageSize);
+            const startIndex = (tradeCurrentPage - 1) * pageSize;
+            const endIndex = Math.min(startIndex + pageSize, filteredTrades.length);
+            const pageData = filteredTrades.slice(startIndex, endIndex);
+            
+            container.innerHTML = pageData
+                .map(trade => createTradeCard(trade))
+                .join('');
+            
+            if (totalPages > 1) {
+                paginationContainer.innerHTML = `
+                    <div class="flex items-center justify-center gap-4">
+                        <button 
+                            onclick="changeTradePage(-1)"
+                            class="px-4 py-2 rounded-lg transition-all"
+                            style="background-color: var(--bg-tertiary); color: var(--text-primary); ${tradeCurrentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                            ${tradeCurrentPage === 1 ? 'disabled' : ''}
+                        >上一页</button>
+                        <span style="color: var(--text-secondary);">第 ${tradeCurrentPage} 页 / 共 ${totalPages} 页</span>
+                        <button 
+                            onclick="changeTradePage(1)"
+                            class="px-4 py-2 rounded-lg transition-all"
+                            style="background-color: var(--bg-tertiary); color: var(--text-primary); ${tradeCurrentPage === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                            ${tradeCurrentPage === totalPages ? 'disabled' : ''}
+                        >下一页</button>
+                    </div>
+                `;
+            } else {
+                paginationContainer.innerHTML = '';
+            }
+            
+            if (currentFilter === 'all' || currentFilter === 'buy' || currentFilter === 'sell') {
+                deleteBtn.classList.remove('hidden');
+            } else {
+                deleteBtn.classList.add('hidden');
+            }
+        }
+        
+        function createTradeCard(trade) {
+            const rarity = rarityConfig[trade.rarity] || rarityConfig['common'];
+            const isSell = trade.type === 'sell';
+            const quantity = trade.quantity || 1;
+            const totalPrice = trade.totalPrice || (trade.price * quantity);
+            const wear = trade.wear ? wearConfig[trade.wear] : null;
+            const iconType = trade.iconType || 'general';
+            const iconConfig = iconTypeConfig[iconType] || iconTypeConfig['general'];
+            const iconLangClass = iconConfig.lang === 'en' ? 'icon-box-text-en' : 'icon-box-text-zh';
+            
+            if (isSell) {
+                const sellQuantity = trade.sellQuantity || quantity;
+                const linkedBuy = trade.linkedBuyId ? trades.find(t => t.id === trade.linkedBuyId) : null;
+                const linkedBuyWear = linkedBuy && linkedBuy.wear ? wearConfig[linkedBuy.wear] : null;
+                
+                return `
+                    <div class="metal-border card-hover rounded-lg p-4 relative overflow-hidden" style="border-left: 4px solid ${rarity.color};">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="icon-box">
+                                        <span class="icon-box-text ${iconLangClass}">${iconConfig.text}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs px-2 py-1 rounded-full font-bold" style="background: rgba(34, 197, 94, 0.2); color: var(--profit);">卖出</span>
+                                    </div>
+                                </div>
+                                <div class="text-sm whitespace-nowrap" style="color: var(--text-secondary);">${trade.sellTime || trade.date}</div>
+                            </div>
+                            <div class="flex gap-4">
+                                <div class="flex-1 ml-0">
+                                    <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary);">${trade.name}</h3>
+                                    <div class="flex flex-col gap-1">
+                                        <div class="text-base" style="color: var(--text-primary);">售出单价：¥${trade.price.toFixed(2)}</div>
+                                        <div class="text-base" style="color: var(--text-primary);">售出数量：${sellQuantity}</div>
+                                    </div>
+                                    ${linkedBuy ? `<div class="text-sm mt-2" style="color: var(--text-secondary);">关联购入: ${linkedBuy.name}（购入 ${linkedBuy.quantity} 把）</div>` : ''}
+                                </div>
+                                <div class="flex flex-col justify-center gap-2 flex-shrink-0">
+                                    <div class="text-base">
+                                        <span style="color: var(--text-secondary);">品质：</span>
+                                        <span style="color: ${rarity.color};">${rarity.name}</span>
+                                    </div>
+                                    ${linkedBuyWear ? `
+                                    <div class="text-base">
+                                        <span style="color: var(--text-secondary);">磨损：</span>
+                                        <span style="color: ${linkedBuyWear.color};">${linkedBuyWear.name}</span>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            <div class="flex justify-center gap-3">
+                                <button onclick="editTrade(${trade.id})" class="w-32 py-2 px-4 rounded-lg text-sm font-bold transition-all" style="background: #3B82F6; color: white;">编辑</button>
+                                <button onclick="deleteTrade(${trade.id})" class="w-32 py-2 px-4 rounded-lg text-sm font-bold transition-all" style="background: #EF4444; color: white;">删除</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const remainingQty = trade.remainingQuantity || 0;
+                const statusClass = trade.status === 'unsettled' ? 'status-unsettled' : 
+                                   trade.status === 'partial' ? 'status-partial' : 'status-settled';
+                const statusText = trade.status === 'unsettled' ? '未结算' : 
+                                  trade.status === 'partial' ? '部分结算' : '已结算';
+                
+                return `
+                    <div class="metal-border card-hover rounded-lg p-4 relative overflow-hidden ${trade.status === 'settled' ? 'opacity-60' : ''}" style="border-left: 4px solid ${rarity.color};">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="icon-box">
+                                        <span class="icon-box-text ${iconLangClass}">${iconConfig.text}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs px-2 py-1 rounded-full font-bold" style="background: rgba(239, 68, 68, 0.2); color: var(--loss);">买入</span>
+                                        <span class="status-badge ${statusClass}">${statusText}</span>
+                                    </div>
+                                </div>
+                                <div class="text-sm whitespace-nowrap" style="color: var(--text-secondary);">${trade.date}</div>
+                            </div>
+                            <div class="flex gap-4">
+                                <div class="flex-1 ml-0">
+                                    <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary);">${trade.name}</h3>
+                                    <div class="flex flex-col gap-1">
+                                        <div class="text-base" style="color: var(--text-primary);">购入单价：¥${trade.price.toFixed(2)}</div>
+                                        <div class="text-base" style="color: var(--text-primary);">购入数量：${quantity}</div>
+                                    </div>
+                                    <div class="text-sm mt-2" style="color: var(--text-secondary);">
+                                        ${trade.status === 'settled' ? '已全部结算' : `剩余: ${remainingQty} 把`}
+                                    </div>
+                                </div>
+                                <div class="flex flex-col justify-center gap-2 flex-shrink-0">
+                                    <div class="text-base">
+                                        <span style="color: var(--text-secondary);">品质：</span>
+                                        <span style="color: ${rarity.color};">${rarity.name}</span>
+                                    </div>
+                                    ${wear ? `
+                                    <div class="text-base">
+                                        <span style="color: var(--text-secondary);">磨损：</span>
+                                        <span style="color: ${wear.color};">${wear.name}</span>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            <div class="flex justify-center gap-3">
+                                <button onclick="editTrade(${trade.id})" class="w-32 py-2 px-4 rounded-lg text-sm font-bold transition-all" style="background: #3B82F6; color: white;">编辑</button>
+                                <button onclick="deleteTrade(${trade.id})" class="w-32 py-2 px-4 rounded-lg text-sm font-bold transition-all" style="background: #EF4444; color: white;">删除</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderSettlementList() {
+            const container = document.getElementById('settlementList');
+            const unsettledBuys = trades.filter(t => t.type === 'buy' && t.status !== 'settled');
+            
+            if (unsettledBuys.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12" style="color: var(--text-secondary);">
+                        <div class="text-6xl mb-4">✅</div>
+                        <div class="text-xl">所有购入记录都已结算</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = unsettledBuys
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .map(trade => createSettlementCard(trade))
+                .join('');
+        }
+        
+        function createSettlementCard(trade) {
+            const rarity = rarityConfig[trade.rarity] || rarityConfig['common'];
+            const quantity = trade.quantity || 1;
+            const totalPrice = trade.totalPrice || (trade.price * quantity);
+            const remainingQty = trade.remainingQuantity || 0;
+            const statusClass = trade.status === 'unsettled' ? 'status-unsettled' : 'status-partial';
+            const statusText = trade.status === 'unsettled' ? '未结算' : '部分结算';
+            const wear = trade.wear ? wearConfig[trade.wear] : null;
+            const iconType = trade.iconType || 'general';
+            const iconConfig = iconTypeConfig[iconType] || iconTypeConfig['general'];
+            const iconLangClass = iconConfig.lang === 'en' ? 'icon-box-text-en' : 'icon-box-text-zh';
+            
+            return `
+                <div class="metal-border card-hover rounded-lg p-4 relative overflow-hidden" style="border-left: 4px solid ${rarity.color};">
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="icon-box">
+                                    <span class="icon-box-text ${iconLangClass}">${iconConfig.text}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs px-2 py-1 rounded-full font-bold" style="background: rgba(239, 68, 68, 0.2); color: var(--loss);">买入</span>
+                                    <span class="status-badge ${statusClass}">${statusText}</span>
+                                </div>
+                            </div>
+                            <div class="text-sm whitespace-nowrap" style="color: var(--text-secondary);">${trade.date}</div>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="flex-1 ml-0">
+                                <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary);">${trade.name}</h3>
+                                <div class="flex flex-col gap-1">
+                                    <div class="text-base" style="color: var(--text-primary);">购入单价：¥${trade.price.toFixed(2)}</div>
+                                    <div class="text-base" style="color: var(--text-primary);">购入数量：${quantity}</div>
+                                </div>
+                                <div class="text-sm mt-2 mb-3" style="color: var(--text-secondary);">
+                                    剩余 ${remainingQty} 把
+                                </div>
+                                <button onclick="openSettleModal(${trade.id})" class="w-full settle-btn text-white font-bold py-2 px-4 rounded-lg transition-all">结算</button>
+                            </div>
+                            <div class="flex flex-col justify-center gap-2 flex-shrink-0">
+                                <div class="text-base">
+                                    <span style="color: var(--text-secondary);">品质：</span>
+                                    <span style="color: ${rarity.color};">${rarity.name}</span>
+                                </div>
+                                ${wear ? `
+                                <div class="text-base">
+                                    <span style="color: var(--text-secondary);">磨损：</span>
+                                    <span style="color: ${wear.color};">${wear.name}</span>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function openSettleModal(tradeId) {
+            currentSettleTrade = trades.find(t => t.id === tradeId);
+            if (!currentSettleTrade) return;
+            
+            const rarity = rarityConfig[currentSettleTrade.rarity] || rarityConfig['common'];
+            const quantity = currentSettleTrade.quantity || 1;
+            const totalPrice = currentSettleTrade.totalPrice || (currentSettleTrade.price * quantity);
+            const remainingQty = currentSettleTrade.remainingQuantity || quantity;
+            
+            document.getElementById('settleBuyInfo').innerHTML = `
+                <h3 class="font-bold mb-2" style="color: var(--text-primary);">购入信息</h3>
+                <div class="text-lg font-bold" style="color: ${rarity.color};">${currentSettleTrade.name}</div>
+                <div class="mt-1" style="color: var(--text-secondary);">
+                    总价: ¥${currentSettleTrade.price.toFixed(2)} 
+                    × ${quantity} = 
+                    <span class="font-bold" style="color: var(--text-primary);">¥${totalPrice.toFixed(2)}</span>
+                </div>
+                <div class="text-sm mt-1" style="color: var(--text-secondary);">${rarity.name} | ${currentSettleTrade.date}</div>
+                <div class="text-sm mt-1 font-bold" style="color: var(--accent);">剩余数量: ${remainingQty} 把</div>
+            `;
+            
+            document.getElementById('settleSellPrice').value = '';
+            document.getElementById('settleSellQuantity').value = remainingQty;
+            document.getElementById('settleSellQuantity').max = remainingQty;
+            document.getElementById('settleQuantityError').classList.add('hidden');
+            
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('settleSellTime').value = today;
+            
+            document.getElementById('settleSellTotal').textContent = '¥0.00';
+            document.getElementById('settleProfit').textContent = '¥0.00';
+            document.getElementById('settleProfit').style.color = 'var(--text-primary)';
+            document.getElementById('settleBuyId').value = tradeId;
+            
+            document.getElementById('settleModal').classList.remove('hidden');
+            document.getElementById('settleModal').classList.add('flex');
+        }
+        
+        function calculateSettleTotal() {
+            if (!currentSettleTrade) return;
+            
+            const sellPrice = parseFloat(document.getElementById('settleSellPrice').value) || 0;
+            const sellQuantity = parseInt(document.getElementById('settleSellQuantity').value) || 1;
+            const remainingQty = currentSettleTrade.remainingQuantity || currentSettleTrade.quantity || 1;
+            const errorEl = document.getElementById('settleQuantityError');
+            
+            if (sellQuantity > remainingQty) {
+                errorEl.textContent = `剩余数量不足，当前剩余 ${remainingQty} 把`;
+                errorEl.classList.remove('hidden');
+                return;
+            } else {
+                errorEl.classList.add('hidden');
+            }
+            
+            const sellTotal = sellPrice * sellQuantity;
+            const buyPrice = currentSettleTrade.price;
+            const profit = (sellPrice - buyPrice) * sellQuantity;
+            
+            document.getElementById('settleSellTotal').textContent = '¥' + sellTotal.toFixed(2);
+            document.getElementById('settleProfit').textContent = (profit >= 0 ? '+' : '') + '¥' + profit.toFixed(2);
+            document.getElementById('settleProfit').style.color = profit >= 0 ? 'var(--profit)' : 'var(--loss)';
+        }
+        
+        function confirmSettle() {
+            if (!currentSettleTrade) return;
+            
+            const sellPrice = parseFloat(document.getElementById('settleSellPrice').value);
+            const sellQuantity = parseInt(document.getElementById('settleSellQuantity').value);
+            const sellTime = document.getElementById('settleSellTime').value;
+            const remainingQty = currentSettleTrade.remainingQuantity || currentSettleTrade.quantity || 1;
+            const errorEl = document.getElementById('settleQuantityError');
+            
+            if (!sellPrice || sellPrice <= 0) {
+                alert('请输入有效的售出价格');
+                return;
+            }
+            
+            if (!sellQuantity || sellQuantity < 1) {
+                alert('请输入有效的售出数量');
+                return;
+            }
+            
+            if (sellQuantity > remainingQty) {
+                errorEl.textContent = `剩余数量不足，当前剩余 ${remainingQty} 把`;
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            
+            const sellTotal = sellPrice * sellQuantity;
+            const now = new Date().toISOString();
+            
+            const buyIndex = trades.findIndex(t => t.id === currentSettleTrade.id);
+            if (buyIndex !== -1) {
+                const newRemaining = trades[buyIndex].remainingQuantity - sellQuantity;
+                trades[buyIndex].remainingQuantity = newRemaining;
+                trades[buyIndex].status = newRemaining === 0 ? 'settled' : 'partial';
+                trades[buyIndex].lastUpdateTime = now;
+            }
+            
+            const sellTrade = {
+                id: Date.now(),
+                type: 'sell',
+                name: currentSettleTrade.name,
+                price: sellPrice,
+                quantity: sellQuantity,
+                sellQuantity: sellQuantity,
+                totalPrice: sellTotal,
+                rarity: currentSettleTrade.rarity,
+                iconType: currentSettleTrade.iconType,
+                date: sellTime || new Date().toISOString().split('T')[0],
+                sellTime: sellTime || new Date().toISOString().split('T')[0],
+                linkedBuyId: currentSettleTrade.id
+            };
+            trades.push(sellTrade);
+            
+            saveTrades();
+            closeSettleModal();
+            setView('settlement');
+            updateHomeStats();
+
+        }
+        
+        function closeSettleModal() {
+            document.getElementById('settleModal').classList.add('hidden');
+            document.getElementById('settleModal').classList.remove('flex');
+            currentSettleTrade = null;
+        }
+        
+        function formatSellTime(timeStr) {
+            if (!timeStr) return '';
+            const date = new Date(timeStr);
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${month}-${day} ${hours}:${minutes}`;
+        }
+        
+        function renderProfitDetailPage() {
+            const sellTrades = trades.filter(t => t.type === 'sell' && t.linkedBuyId);
+            
+            if (sellTrades.length === 0) {
+                document.getElementById('profitDetailContent').innerHTML = `
+                    <div class="text-center py-12" style="color: var(--text-secondary);">
+                        <div class="text-6xl mb-4">📊</div>
+                        <div class="text-xl">暂无结算记录</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            const buyMap = new Map(trades.filter(t => t.type === 'buy').map(t => [t.id, t]));
+            
+            const profitData = sellTrades.map(sell => {
+                const buy = buyMap.get(sell.linkedBuyId);
+                if (!buy) return null;
+                
+                const sellQuantity = sell.sellQuantity || sell.quantity || 1;
+                const profit = (sell.price - buy.price) * sellQuantity;
+                const iconType = buy.iconType || 'general';
+                const iconConfig = iconTypeConfig[iconType] || iconTypeConfig['general'];
+                const iconLangClass = iconConfig.lang === 'en' ? 'icon-box-text-en' : 'icon-box-text-zh';
+                
+                return {
+                    name: buy.name,
+                    profit: profit,
+                    sellTime: sell.sellTime || sell.date,
+                    iconType: iconType,
+                    iconConfig: iconConfig,
+                    iconLangClass: iconLangClass
+                };
+            }).filter(item => item !== null);
+            
+            profitData.sort((a, b) => new Date(b.sellTime) - new Date(a.sellTime));
+            
+            const totalPages = Math.ceil(profitData.length / profitDetailPageSize);
+            const startIndex = (profitDetailCurrentPage - 1) * profitDetailPageSize;
+            const endIndex = Math.min(startIndex + profitDetailPageSize, profitData.length);
+            const pageData = profitData.slice(startIndex, endIndex);
+            
+            const tableHTML = `
+                <table class="w-full">
+                    <thead style="background-color: var(--bg-tertiary);">
+                        <tr>
+                            <th class="text-left py-3 px-4 font-bold" style="color: var(--text-primary);"></th>
+                            <th class="text-left py-3 px-4 font-bold" style="color: var(--text-primary);">项目名称</th>
+                            <th class="text-left py-3 px-4 font-bold" style="color: var(--text-primary);">出售时间</th>
+                            <th class="text-right py-3 px-4 font-bold" style="color: var(--text-primary);">单项目收益</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${pageData.map(item => `
+                            <tr class="border-b transition-all" style="border-color: var(--border);">
+                                <td class="py-3 px-4">
+                                    <div class="icon-box">
+                                        <span class="icon-box-text ${item.iconLangClass}">${item.iconConfig.text}</span>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 truncate max-w-[40%]" style="color: var(--text-primary);">${item.name}</td>
+                                <td class="py-3 px-4" style="color: var(--text-secondary);">${formatSellTime(item.sellTime)}</td>
+                                <td class="py-3 px-4 text-right font-bold" style="color: ${item.profit >= 0 ? 'var(--profit)' : 'var(--loss)'};">${item.profit >= 0 ? '+' : ''}¥${item.profit.toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            const paginationHTML = totalPages > 1 ? `
+                <div class="flex items-center justify-center gap-4 mt-4">
+                    <button 
+                        onclick="changeProfitDetailPage(-1)"
+                        class="px-4 py-2 rounded-lg transition-all"
+                        style="background-color: var(--bg-tertiary); color: var(--text-primary); ${profitDetailCurrentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                        ${profitDetailCurrentPage === 1 ? 'disabled' : ''}
+                    >上一页</button>
+                    <span style="color: var(--text-secondary);">第 ${profitDetailCurrentPage} 页 / 共 ${totalPages} 页</span>
+                    <button 
+                        onclick="changeProfitDetailPage(1)"
+                        class="px-4 py-2 rounded-lg transition-all"
+                        style="background-color: var(--bg-tertiary); color: var(--text-primary); ${profitDetailCurrentPage === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                        ${profitDetailCurrentPage === totalPages ? 'disabled' : ''}
+                    >下一页</button>
+                </div>
+            ` : '';
+            
+            document.getElementById('profitDetailContent').innerHTML = tableHTML + paginationHTML;
+        }
+        
+        function changeProfitDetailPage(delta) {
+            profitDetailCurrentPage += delta;
+            renderProfitDetailPage();
+        }
+        
+        function openProfitDetailModal() {
+            profitDetailCurrentPage = 1;
+            renderProfitDetailPage();
+            document.getElementById('profitDetailModal').classList.remove('hidden');
+            document.getElementById('profitDetailModal').classList.add('flex');
+        }
+        
+        function closeProfitDetailModal() {
+            document.getElementById('profitDetailModal').classList.add('hidden');
+            document.getElementById('profitDetailModal').classList.remove('flex');
+        }
+        
+        function updateHomeStats() {
+            const sellTrades = trades.filter(t => t.type === 'sell' && t.linkedBuyId);
+            
+            const buyMap = new Map(trades.filter(t => t.type === 'buy').map(t => [t.id, t]));
+            
+            let actualProfit = 0;
+            sellTrades.forEach(sell => {
+                const buy = buyMap.get(sell.linkedBuyId);
+                if (buy) {
+                    const sellQuantity = sell.sellQuantity || sell.quantity || 1;
+                    actualProfit += (sell.price - buy.price) * sellQuantity;
+                }
+            });
+            
+            const unsettledBuys = trades.filter(t => t.type === 'buy' && t.status !== 'settled');
+            const unsettledAmount = unsettledBuys.reduce((sum, t) => {
+                const remainingQty = t.remainingQuantity || t.quantity || 1;
+                return sum + (t.price * remainingQty);
+            }, 0);
+            
+            const profitEl = document.getElementById('homeActualProfit');
+            const sign = actualProfit >= 0 ? '+' : '';
+            profitEl.textContent = sign + '¥' + actualProfit.toFixed(2);
+            profitEl.style.color = actualProfit >= 0 ? 'var(--profit)' : 'var(--loss)';
+            
+            document.getElementById('homeUnsettledAmount').textContent = '¥' + unsettledAmount.toFixed(2);
+        }
+        
+        function openQuickModal(type) {
+            document.getElementById('quickType').value = type;
+            document.getElementById('quickModalTitle').textContent = type === 'buy' ? '快速购入' : '快速售出';
+            document.getElementById('quickItemName').value = '';
+            document.getElementById('quickItemPrice').value = '';
+            document.getElementById('quickItemQuantity').value = 1;
+            document.getElementById('quickItemRarity').value = 'consumer';
+            setDefaultDate();
+            calculateQuickTotal();
+            
+            document.getElementById('quickModal').classList.remove('hidden');
+            document.getElementById('quickModal').classList.add('flex');
+        }
+        
+        function closeQuickModal() {
+            document.getElementById('quickModal').classList.add('hidden');
+            document.getElementById('quickModal').classList.remove('flex');
+        }
+        
+        function calculateQuickTotal() {
+            const price = parseFloat(document.getElementById('quickItemPrice').value) || 0;
+            const quantity = parseInt(document.getElementById('quickItemQuantity').value) || 1;
+            const total = price * Math.max(1, quantity);
+            document.getElementById('quickCalculatedTotal').textContent = '¥' + total.toFixed(2);
+        }
+        
+        function handleQuickTrade(e) {
+            e.preventDefault();
+            const type = document.getElementById('quickType').value;
+            const price = parseFloat(document.getElementById('quickItemPrice').value);
+            const quantity = parseInt(document.getElementById('quickItemQuantity').value) || 1;
+            
+            if (quantity < 1 || !Number.isInteger(quantity)) {
+                alert('请输入有效饰品数量（正整数）');
+                return;
+            }
+            
+            const now = new Date().toISOString();
+            
+            const trade = {
+                id: Date.now(),
+                type: type,
+                name: document.getElementById('quickItemName').value,
+                price: price,
+                quantity: quantity,
+                totalPrice: price * quantity,
+                rarity: document.getElementById('quickItemRarity').value,
+                wear: document.getElementById('quickItemWear').value,
+                iconType: document.getElementById('quickItemIconType').value,
+                date: document.getElementById('quickTradeDate').value,
+            };
+            
+            if (type === 'buy') {
+                trade.remainingQuantity = quantity;
+                trade.status = 'unsettled';
+                trade.lastUpdateTime = now;
+            }
+            
+            trades.push(trade);
+            saveTrades();
+            closeQuickModal();
+            updateHomeStats();
+
+        }
+        
+        function deleteTrade(id) {
+            if (confirm('确定要删除这条交易记录吗？')) {
+                trades = trades.filter(t => t.id !== id);
+                saveTrades();
+                if (currentView === 'settlement') {
+                    renderSettlementList();
+                } else if (currentView === 'trades' || ['all', 'buy', 'sell', 'unsettled'].includes(currentView)) {
+                    renderTrades();
+                }
+                updateHomeStats();
+    
+            }
+        }
+        
+        function deleteAllFilteredTrades() {
+            const filteredTrades = getFilteredTrades();
+            if (filteredTrades.length === 0) {
+                alert('当前没有记录可删除');
+                return;
+            }
+            
+            const filterText = currentFilter === 'all' ? '全部交易' : 
+                              currentFilter === 'buy' ? '购入记录' : 
+                              currentFilter === 'sell' ? '售出记录' : '';
+            
+            if (confirm(`确定要删除当前页面所有${filterText}吗？此操作将删除 ${filteredTrades.length} 条记录，不可撤销！`)) {
+                const filteredIds = filteredTrades.map(t => t.id);
+                trades = trades.filter(t => !filteredIds.includes(t.id));
+                saveTrades();
+                renderTrades();
+                updateHomeStats();
+    
+            }
+        }
+        
+        function editTrade(id) {
+            const trade = trades.find(t => t.id === id);
+            if (trade) {
+                document.getElementById('editId').value = trade.id;
+                document.getElementById('editTradeType').value = trade.type;
+                document.getElementById('editItemName').value = trade.name;
+                document.getElementById('editItemPrice').value = trade.price;
+                document.getElementById('editItemQuantity').value = trade.quantity || 1;
+                document.getElementById('editItemRarity').value = trade.rarity;
+                document.getElementById('editItemWear').value = trade.wear || '';
+                document.getElementById('editItemIconType').value = trade.iconType || 'general';
+                document.getElementById('editTradeDate').value = trade.date;
+                calculateEditTotal();
+                openEditModal();
+            }
+        }
+        
+        function calculateEditTotal() {
+            const price = parseFloat(document.getElementById('editItemPrice').value) || 0;
+            const quantity = parseInt(document.getElementById('editItemQuantity').value) || 1;
+            const total = price * Math.max(1, quantity);
+            document.getElementById('editCalculatedTotal').textContent = '¥' + total.toFixed(2);
+        }
+        
+        function handleEditTrade(e) {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('editId').value);
+            const price = parseFloat(document.getElementById('editItemPrice').value);
+            const quantity = parseInt(document.getElementById('editItemQuantity').value) || 1;
+            
+            if (quantity < 1 || !Number.isInteger(quantity)) {
+                alert('请输入有效饰品数量（正整数）');
+                return;
+            }
+            
+            const index = trades.findIndex(t => t.id === id);
+            if (index !== -1) {
+                const oldTrade = trades[index];
+                trades[index] = {
+                    ...oldTrade,
+                    name: document.getElementById('editItemName').value,
+                    price: price,
+                    quantity: quantity,
+                    totalPrice: price * quantity,
+                    rarity: document.getElementById('editItemRarity').value,
+                    wear: document.getElementById('editItemWear').value,
+                    iconType: document.getElementById('editItemIconType').value,
+                    date: document.getElementById('editTradeDate').value
+                };
+                saveTrades();
+                if (currentView === 'settlement') {
+                    renderSettlementList();
+                } else {
+                    renderTrades();
+                }
+                updateHomeStats();
+    
+            }
+            closeEditModal();
+        }
+        
+        function openEditModal() {
+            document.getElementById('editModal').classList.remove('hidden');
+            document.getElementById('editModal').classList.add('flex');
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+            document.getElementById('editModal').classList.remove('flex');
+        }
+        
+        function addNote() {
+            const input = document.getElementById('noteInput');
+            const content = input.value.trim();
+            if (!content) {
+                alert('请输入笔记内容');
+                return;
+            }
+            
+            const note = {
+                id: Date.now(),
+                content: content,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            notes.unshift(note);
+            saveNotes();
+            input.value = '';
+            renderNotes();
+        }
+        
+        function renderNotes() {
+            const container = document.getElementById('notesList');
+            if (notes.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12" style="color: var(--text-secondary);">
+                        <div class="text-6xl mb-4">📝</div>
+                        <div class="text-xl">还没有笔记</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = notes.map(note => `
+                <div class="metal-border rounded-lg p-4">
+                    <div class="text-xs mb-2" style="color: var(--text-secondary);">${new Date(note.updatedAt).toLocaleString('zh-CN')}</div>
+                    <div class="whitespace-pre-wrap mb-3" style="color: var(--text-primary);">${escapeHtml(note.content)}</div>
+                    <div class="flex gap-2">
+                        <button onclick="deleteNote(${note.id})" class="py-1 px-3 rounded text-sm transition-all" style="background: rgba(239, 68, 68, 0.2); color: var(--loss); border: 1px solid rgba(239, 68, 68, 0.3);">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function deleteNote(id) {
+            if (confirm('确定要删除这条笔记吗？')) {
+                notes = notes.filter(n => n.id !== id);
+                saveNotes();
+                renderNotes();
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function clearAllTrades() {
+            if (confirm('确定要清空所有交易记录吗？此操作不可撤销！')) {
+                trades = [];
+                saveTrades();
+                setView('home');
+    
+            }
+        }
+        
+        function toggleSubmenu(id) {
+            const submenu = document.getElementById(id + '-submenu');
+            const icon = document.getElementById(id + '-icon');
+            submenu.classList.toggle('open');
+            icon.textContent = submenu.classList.contains('open') ? '▼' : '▶';
+        }
+        
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+        
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+        
+
+        
+
+        
+        function exportTrades(format) {
+            if (trades.length === 0) {
+                alert('没有可导出的交易记录');
+                return;
+            }
+            
+            let content, filename, mimeType;
+            if (format === 'json') {
+                content = JSON.stringify(trades, null, 2);
+                filename = `csgo-trades-${new Date().toISOString().split('T')[0]}.json`;
+                mimeType = 'application/json';
+            } else {
+                const headers = ['ID', '类型', '名称', '单价', '数量', '总价', '品质', '日期', '状态', '剩余数量'];
+                const rows = trades.map(t => [
+                    t.id,
+                    t.type === 'buy' ? '买入' : '卖出',
+                    t.name,
+                    t.price,
+                    t.quantity || 1,
+                    t.totalPrice || (t.price * (t.quantity || 1)),
+                    rarityConfig[t.rarity]?.name || t.rarity,
+                    t.date,
+                    t.type === 'buy' ? (t.status || 'unsettled') : 'settled',
+                    t.type === 'buy' ? (t.remainingQuantity || t.quantity || 1) : ''
+                ]);
+                content = [headers, ...rows].map(row => row.join(',')).join('\n');
+                filename = `csgo-trades-${new Date().toISOString().split('T')[0]}.csv`;
+                mimeType = 'text/csv';
+            }
+            
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function importTrades(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    let importedTrades;
+                    if (file.name.endsWith('.json')) {
+                        importedTrades = JSON.parse(e.target.result);
+                    } else if (file.name.endsWith('.csv')) {
+                        const lines = e.target.result.split('\n').slice(1).filter(l => l.trim());
+                        importedTrades = lines.map(line => {
+                            const cols = line.split(',');
+                            const type = cols[1] === '买入' ? 'buy' : 'sell';
+                            const quantity = parseInt(cols[4]) || 1;
+                            return {
+                                id: Date.now() + Math.random(),
+                                type: type,
+                                name: cols[2],
+                                price: parseFloat(cols[3]),
+                                quantity: quantity,
+                                totalPrice: parseFloat(cols[5]),
+                                rarity: Object.keys(rarityConfig).find(k => rarityConfig[k].name === cols[6]) || 'common',
+                                date: cols[7],
+                                status: type === 'buy' ? (cols[8] || 'unsettled') : undefined,
+                                remainingQuantity: type === 'buy' ? (parseInt(cols[9]) || quantity) : undefined,
+                                lastUpdateTime: type === 'buy' ? new Date().toISOString() : undefined
+                            };
+                        });
+                    }
+                    
+                    if (Array.isArray(importedTrades)) {
+                        trades = [...trades, ...importedTrades];
+                        saveTrades();
+                        setView('home');
+            
+                        alert(`成功导入 ${importedTrades.length} 条交易记录`);
+                    }
+                } catch (err) {
+                    alert('导入失败，请检查文件格式');
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+    </script>
+</body>
+</html>
